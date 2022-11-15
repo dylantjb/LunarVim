@@ -21,6 +21,17 @@ lv-settings.lua
 lua/lv-user/
 lua/lv-user-config/
 plugin/
+utils/
+tests/
+github/
+LICENSE
+CHANGELOG.md
+CONTRIBUTING.md
+Makefile
+README.md
+.luacheckrc
+.pre-commit-config.yaml
+.stylua.toml
 
 *.tmp
 *.temp
@@ -28,5 +39,3 @@ plugin/
 *.backup
 *.old
 
-.luarc.json
-.luacheckcache
