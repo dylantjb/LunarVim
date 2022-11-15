@@ -20,6 +20,7 @@ nv-settings.lua
 lv-settings.lua
 lua/lv-user/
 lua/lv-user-config/
+plugin/
 
 *.tmp
 *.temp
