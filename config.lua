@@ -5,30 +5,22 @@
 -- /_____/\__,_/_/ /_/\__,_/_/    |___/_/_/ /_/ /_/
 
 
--- {{{ autocommands 
 vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
   pattern = { "*.scala", "*.sbt", "*.sc" },
   callback = function() require('user.metals').start() end,
 })
---- }}}
 
--- {{{ options 
 vim.opt.timeoutlen = 500
-vim.opt.foldmethod = "marker"
 vim.opt.relativenumber = true
-
-lvim.log.level = "warn"
 lvim.colorscheme = "onedarker"
 lvim.transparent_window = true
-lvim.format_on_save = false
-lvim.lint_on_save = true
 
 lvim.lsp.diagnostics.virtual_text = false
 vim.list_extend(lvim.lsp.automatic_configuration.skipped_servers, { "clangd" })
 require("lvim.lsp.null-ls.formatters").setup {
   { exe = "black", filetypes = { "python" } },
   { exe = "isort", filetypes = { "python" } },
-  { exe = "djlint", filetypes = { "django" } },
+  { exe = "djlint", filetypes = { "htmldjango" } },
   { exe = "scalafmt", filetypes = { "scala" } },
 }
 require("lvim.lsp.null-ls.linters").setup {
@@ -36,23 +28,24 @@ require("lvim.lsp.null-ls.linters").setup {
   { exe = "djlint", filetypes = { "django" } },
   { exe = "cppcheck", filetypes = { "cpp", "c" } },
 }
--- }}}
 
--- {{{ builtin plugins 
 lvim.builtin.dap.active = true
 lvim.builtin.nvimtree.setup.view.side = "left"
 lvim.builtin.nvimtree.setup.filters.dotfiles = true
 lvim.builtin.nvimtree.setup.renderer.icons.show.git = true
+lvim.builtin.indentlines.options.show_current_context = true
 lvim.builtin.treesitter.ensure_installed = {
   "bash", "c", "cmake", "cpp", "gitignore", "html", "java",
   "javascript", "latex", "lua", "markdown", "python", "scala"
 }
+
 lvim.builtin.which_key.setup.window = { padding = { 0, 0, 0, 0 } }
 lvim.builtin.which_key.setup.layout = {
   spacing = 3,
   align = "left",
   height = { min = 1, max = 10 }
 }
+lvim.builtin.alpha.dashboard.section.footer = nil
 lvim.builtin.alpha.dashboard.section.header.val = {
   "   ⣴⣶⣤⡤⠦⣤⣀⣤⠆     ⣈⣭⣿⣶⣿⣦⣼⣆          ",
   "    ⠉⠻⢿⣿⠿⣿⣿⣶⣦⠤⠄⡠⢾⣿⣿⡿⠋⠉⠉⠻⣿⣿⡛⣦       ",
@@ -65,9 +58,7 @@ lvim.builtin.alpha.dashboard.section.header.val = {
   " ⠙⠃   ⣼⣿⡟  ⠈⠻⣿⣿⣦⣌⡇⠻⣿⣿⣷⣿⣿⣿ ⣿⣿⡇ ⠛⠻⢷⣄ ",
   "     ⠻⣿⣿⣿⣿⣶  ⠈⠻⣿⣿⣿⣷⣿⣿⣿⣿⣿⡟⣤⣾⡿⠃     ",
 }
--- }}}
 
--- {{{ dap 
 local mason_path = vim.fn.glob(vim.fn.stdpath "data" .. "/mason/")
 local status_ok, dap = pcall(require, "dap")
 if not status_ok then return end
@@ -110,9 +101,7 @@ dap.configurations.scala = {
 
 pcall(function() require("dap-python").setup(mason_path .. "packages/debugpy/venv/bin/python") end)
 pcall(function() require("dap-python").test_runner = "pytest" end)
--- }}}
 
--- {{{ additional plugins 
 lvim.plugins = {
   "nvim-neotest/neotest",
   "scalameta/nvim-metals",
@@ -192,4 +181,3 @@ lvim.plugins = {
     end
   },
 }
--- }}}
