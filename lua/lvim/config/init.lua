@@ -35,6 +35,11 @@ function M:init()
     },
   }
 
+  lvim.builtin.bigfile = {
+    active = true,
+    config = {},
+  }
+
   require("lvim.config._deprecated").handle()
 end
 
@@ -46,17 +51,25 @@ function M:load(config_path)
   local ok, err = pcall(dofile, config_path)
   if not ok then
     if utils.is_file(user_config_file) then
-      Log:warn("Invalid configuration: " .. err)
+      vim.schedule(function()
+        Log:warn("Invalid configuration: " .. err)
+      end)
     else
-      vim.notify_once(
-        string.format("User-configuration not found. Creating an example configuration in %s", config_path)
-      )
-      local example_config = join_paths(get_lvim_base_dir(), "utils", "installer", "config.example.lua")
+      vim.schedule(function()
+        vim.notify_once(
+          string.format("User-configuration not found. Creating an example configuration in %s", config_path)
+        )
+      end)
+      local config_name = vim.loop.os_uname().version:match "Windows" and "config_win" or "config"
+      local example_config = join_paths(get_lvim_base_dir(), "utils", "installer", config_name .. ".example.lua")
+      vim.fn.mkdir(user_config_dir, "p")
       vim.loop.fs_copyfile(example_config, config_path)
     end
   end
 
   Log:set_level(lvim.log.level)
+
+  require("lvim.config._deprecated").post_load()
 
   autocmds.define_autocmds(lvim.autocommands)
 

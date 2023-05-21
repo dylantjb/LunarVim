@@ -4,17 +4,29 @@ function M.config()
   local lvim_dashboard = require "lvim.core.alpha.dashboard"
   local lvim_startify = require "lvim.core.alpha.startify"
   lvim.builtin.alpha = {
-    dashboard = { config = {}, section = lvim_dashboard.get_sections() },
-    startify = { config = {}, section = lvim_startify.get_sections() },
+    dashboard = {
+      config = {},
+      section = lvim_dashboard.get_sections(),
+      opts = { autostart = true },
+    },
+    startify = {
+      config = {},
+      section = lvim_startify.get_sections(),
+      opts = { autostart = true },
+    },
     active = true,
     mode = "dashboard",
   }
 end
 
-local function resolve_buttons(theme_name, entries)
+local function resolve_buttons(theme_name, button_section)
+  if button_section.val and #button_section.val > 0 then
+    return button_section.val
+  end
+
   local selected_theme = require("alpha.themes." .. theme_name)
   local val = {}
-  for _, entry in pairs(entries) do
+  for _, entry in pairs(button_section.entries) do
     local on_press = function()
       local sc_ = entry[1]:gsub("%s", ""):gsub("SPC", "<leader>")
       local key = vim.api.nvim_replace_termcodes(sc_, true, false, true)
@@ -23,6 +35,12 @@ local function resolve_buttons(theme_name, entries)
     local button_element = selected_theme.button(entry[1], entry[2], entry[3])
     -- this became necessary after recent changes in alpha.nvim (06ade3a20ca9e79a7038b98d05a23d7b6c016174)
     button_element.on_press = on_press
+
+    -- account for different icon byte sizes in cursor offset
+    local _, icon_length = button_element.val:find "[\128-\255]*"
+    button_element.opts.cursor = icon_length + 2
+    button_element.opts = vim.tbl_extend("force", button_element.opts, entry[4] or button_section.opts or {})
+
     table.insert(val, button_element)
   end
   return val
@@ -36,32 +54,19 @@ local function resolve_config(theme_name)
   for name, el in pairs(section) do
     for k, v in pairs(el) do
       if name:match "buttons" and k == "entries" then
-        resolved_section[name].val = resolve_buttons(theme_name, v)
+        resolved_section[name].val = resolve_buttons(theme_name, el)
       elseif v then
         resolved_section[name][k] = v
       end
     end
+
+    resolved_section[name].opts = el.opts or {}
   end
+
+  local opts = lvim.builtin.alpha[theme_name].opts or {}
+  selected_theme.config.opts = vim.tbl_extend("force", selected_theme.config.opts, opts)
 
   return selected_theme.config
-end
-
-local function configure_additional_autocmds()
-  local group = "_dashboard_settings"
-  vim.api.nvim_create_augroup(group, {})
-  vim.api.nvim_create_autocmd("FileType", {
-    group = group,
-    pattern = "alpha",
-    command = "set showtabline=0 | autocmd BufLeave <buffer> set showtabline=" .. vim.opt.showtabline._value,
-  })
-  if not lvim.builtin.lualine.options.globalstatus then
-    -- https://github.com/goolord/alpha-nvim/issues/42
-    vim.api.nvim_create_autocmd("FileType", {
-      group = group,
-      pattern = "alpha",
-      command = "set laststatus=0 | autocmd BufUnload <buffer> set laststatus=" .. vim.opt.laststatus._value,
-    })
-  end
 end
 
 function M.setup()
@@ -78,7 +83,6 @@ function M.setup()
   end
 
   alpha.setup(config)
-  configure_additional_autocmds()
 end
 
 return M

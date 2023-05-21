@@ -26,7 +26,7 @@ end
 local function custom_filter(buf, buf_nums)
   local logs = vim.tbl_filter(function(b)
     return is_ft(b, "log")
-  end, buf_nums)
+  end, buf_nums or {})
   if vim.tbl_isempty(logs) then
     return true
   end
@@ -117,8 +117,8 @@ M.config = function()
           highlight = "PanelHeading",
         },
         {
-          filetype = "packer",
-          text = "Packer",
+          filetype = "lazy",
+          text = "Lazy",
           highlight = "PanelHeading",
           padding = 1,
         },
@@ -151,6 +151,9 @@ M.setup = function()
   if not status_ok then
     return
   end
+
+  -- can't be set in settings.lua because default tabline would flash before bufferline is loaded
+  vim.opt.showtabline = 2
 
   bufferline.setup {
     options = lvim.builtin.bufferline.options,
@@ -194,9 +197,9 @@ function M.buf_kill(kill_command, bufnr, force)
       vim.ui.input({
         prompt = string.format([[%s. Close it anyway? [y]es or [n]o (default: no): ]], warning),
       }, function(choice)
-        if choice:match "ye?s?" then force = true end
+        if choice ~= nil and choice:match "ye?s?" then M.buf_kill(kill_command, bufnr, true) end
       end)
-      if not force then return end
+      return
     end
   end
 

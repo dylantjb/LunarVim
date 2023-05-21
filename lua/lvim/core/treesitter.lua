@@ -6,7 +6,7 @@ function M.config()
     on_config_done = nil,
 
     -- A list of parser names, or "all"
-    ensure_installed = {},
+    ensure_installed = { "comment", "markdown_inline", "regex" },
 
     -- List of parsers to ignore installing (for "all")
     ignore_install = {},
@@ -20,7 +20,7 @@ function M.config()
     sync_install = false,
 
     -- Automatically install missing parsers when entering buffer
-    auto_install = false,
+    auto_install = true,
 
     matchup = {
       enable = false, -- mandatory, false will disable the whole extension
@@ -34,38 +34,8 @@ function M.config()
           return true
         end
 
-        local max_filesize = 1024 * 1024
-        local ok, stats = pcall(vim.loop.fs_stat, vim.api.nvim_buf_get_name(buf))
-        if ok and stats and stats.size > max_filesize then
-          if lvim.builtin.illuminate.active then
-            pcall(require("illuminate").pause_buf)
-          end
-
-          vim.schedule(function()
-            vim.api.nvim_buf_call(buf, function()
-              vim.cmd "setlocal noswapfile noundofile"
-
-              if vim.tbl_contains({ "json" }, lang) then
-                vim.cmd "NoMatchParen"
-                vim.cmd "syntax off"
-                vim.cmd "syntax clear"
-                vim.cmd "setlocal nocursorline nolist bufhidden=unload"
-
-                vim.api.nvim_create_autocmd({ "BufDelete" }, {
-                  callback = function()
-                    vim.cmd "DoMatchParen"
-                    vim.cmd "syntax on"
-                  end,
-                  buffer = buf,
-                })
-              end
-            end)
-          end)
-
-          Log:info "File larger than 1MB, turned off treesitter for this buffer"
-
-          return true
-        end
+        local status_ok, big_file_detected = pcall(vim.api.nvim_buf_get_var, buf, "bigfile_disable_treesitter")
+        return status_ok and big_file_detected
       end,
     },
     context_commentstring = {
@@ -125,69 +95,6 @@ function M.config()
   }
 end
 
----@class bundledParsersOpts
----@field name_only boolean
----@field filter function
-
----Retrives a list of bundled parsers paths (any parser not found in default `install_dir`)
----@param opts bundledParsersOpts
----@return string[]
-local function get_parsers(opts)
-  opts = opts or {}
-  opts.filter = opts.filter or function()
-    return true
-  end
-
-  local bundled_parsers = vim.tbl_filter(opts.filter, vim.api.nvim_get_runtime_file("parser/*.so", true))
-
-  if opts.name_only then
-    bundled_parsers = vim.tbl_map(function(parser)
-      return vim.fn.fnamemodify(parser, ":t:r")
-    end, bundled_parsers)
-  end
-
-  return bundled_parsers
-end
-
----Checks if parser is installed with nvim-treesitter
----@param lang string
----@return boolean
-local function is_installed(lang)
-  local configs = require "nvim-treesitter.configs"
-  local result = get_parsers {
-    filter = function(parser)
-      local install_dir = configs.get_parser_install_dir()
-      return vim.startswith(parser, install_dir) and (vim.fn.fnamemodify(parser, ":t:r") == lang)
-    end,
-  }
-  local parser_file = result and result[1] or ""
-  local stat = vim.loop.fs_stat(parser_file)
-  return stat and stat.type == "file"
-end
-
-local function ensure_updated_bundled()
-  local configs = require "nvim-treesitter.configs"
-  local bundled_parsers = get_parsers {
-    name_only = true,
-    filter = function(parser)
-      local install_dir = configs.get_parser_install_dir()
-      return not vim.startswith(parser, install_dir)
-    end,
-  }
-
-  vim.api.nvim_create_autocmd("VimEnter", {
-    callback = function()
-      local missing = vim.tbl_filter(function(parser)
-        return not is_installed(parser)
-      end, bundled_parsers)
-
-      if #missing > 0 then
-        vim.cmd { cmd = "TSInstall", args = missing, bang = true }
-      end
-    end,
-  })
-end
-
 function M.setup()
   -- avoid running in headless mode since it's harder to detect failures
   if #vim.api.nvim_list_uis() == 0 then
@@ -210,6 +117,11 @@ function M.setup()
   if lvim.builtin.treesitter.on_config_done then
     lvim.builtin.treesitter.on_config_done(treesitter_configs)
   end
+
+  -- handle deprecated API, https://github.com/windwp/nvim-autopairs/pull/324
+  local ts_utils = require "nvim-treesitter.ts_utils"
+  ts_utils.is_in_node_range = vim.treesitter.is_in_node_range
+  ts_utils.get_node_range = vim.treesitter.get_node_range
 end
 
 M.get_parsers = get_parsers

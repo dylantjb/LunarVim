@@ -75,6 +75,8 @@ function M.common_on_attach(client, bufnr)
   add_lsp_buffer_keybindings(bufnr)
   add_lsp_buffer_options(bufnr)
   lu.setup_document_symbols(client, bufnr)
+  vim.lsp.handlers["textDocument/hover"] = vim.lsp.with(vim.lsp.handlers.hover, { border = "rounded" })
+  vim.lsp.handlers["textDocument/signatureHelp"] = vim.lsp.with(vim.lsp.handlers.signature_help, { border = "rounded" })
 end
 
 function M.get_common_opts()
@@ -95,12 +97,10 @@ function M.setup()
   end
 
   if lvim.use_icons then
-    for _, sign in ipairs(lvim.lsp.diagnostics.signs.values) do
+    for _, sign in ipairs(vim.tbl_get(vim.diagnostic.config(), "signs", "values") or {}) do
       vim.fn.sign_define(sign.name, { texthl = sign.name, text = sign.text, numhl = sign.name })
     end
   end
-
-  require("lvim.lsp.handlers").setup()
 
   if not utils.is_directory(lvim.lsp.templates_dir) then
     require("lvim.lsp.templates").generate_templates()
@@ -110,16 +110,18 @@ function M.setup()
     require("nlspsettings").setup(lvim.lsp.nlsp_settings.setup)
   end)
 
-  pcall(function()
-    require("mason-lspconfig").setup(lvim.lsp.installer.setup)
-    local util = require "lspconfig.util"
-    -- automatic_installation is handled by lsp-manager
-    util.on_setup = nil
-  end)
-
   require("lvim.lsp.null-ls").setup()
 
   autocmds.configure_format_on_save()
+
+  local function set_handler_opts_if_not_set(name, handler, opts)
+    if debug.getinfo(vim.lsp.handlers[name], "S").source:match(vim.env.VIMRUNTIME) then
+      vim.lsp.handlers[name] = vim.lsp.with(handler, opts)
+    end
+  end
+
+  set_handler_opts_if_not_set("textDocument/hover", vim.lsp.handlers.hover, { border = "rounded" })
+  set_handler_opts_if_not_set("textDocument/signatureHelp", vim.lsp.handlers.signature_help, { border = "rounded" })
 end
 
 return M

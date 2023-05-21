@@ -8,6 +8,10 @@ M.config = function()
       plugins = {
         marks = false, -- shows a list of your marks on ' and `
         registers = false, -- shows your registers on " in NORMAL or <C-r> in INSERT mode
+        spelling = {
+          enabled = true,
+          suggestions = 20,
+        }, -- use which-key for spelling hints
         -- the presets plugin, adds help for a bunch of default keybindings in Neovim
         -- No actual key bindings are created
         presets = {
@@ -19,7 +23,16 @@ M.config = function()
           z = false, -- bindings for folds, spelling and others prefixed with z
           g = false, -- bindings for prefixed with g
         },
-        spelling = { enabled = true, suggestions = 20 }, -- use which-key for spelling hints
+      },
+      -- add operators that will trigger motion and text object completion
+      -- to enable all native operators, set the preset / operators plugin above
+      operators = { gc = "Comments" },
+      key_labels = {
+        -- override the label used to display some keys. It doesn't effect WK in any other way.
+        -- For example:
+        -- ["<space>"] = "SPC",
+        -- ["<cr>"] = "RET",
+        -- ["<tab>"] = "TAB",
       },
       icons = {
         breadcrumb = lvim.icons.ui.DoubleChevronRight, -- symbol used in the command line area that shows your active key combo
@@ -43,9 +56,10 @@ M.config = function()
         spacing = 3, -- spacing between columns
         align = "left", -- align columns left, center or right
       },
-      hidden = { "<silent>", "<cmd>", "<Cmd>", "<CR>", "call", "lua", "^:", "^ " }, -- hide mapping boilerplate
       ignore_missing = false, -- enable this to hide mappings for which you didn't specify a label
+      hidden = { "<silent>", "<cmd>", "<Cmd>", "<CR>", "call", "lua", "^:", "^ " }, -- hide mapping boilerplate
       show_help = true, -- show help message on the command line when the popup is visible
+      show_keys = true, -- show the currently pressed key and its label as a message in the command line
       triggers = "auto", -- automatically setup triggers
       -- triggers = {"<leader>"} -- or specify a list manually
       triggers_blacklist = {
@@ -54,6 +68,12 @@ M.config = function()
         -- most people should not need to change this
         i = { "j", "k" },
         v = { "j", "k" },
+      },
+      -- disable the WhichKey popup for certain buf types and file types.
+      -- Disabled by default for Telescope
+      disable = {
+        buftypes = {},
+        filetypes = { "TelescopePrompt" },
       },
     },
 
@@ -76,22 +96,33 @@ M.config = function()
     -- NOTE: Prefer using : over <cmd> as the latter avoids going back in normal-mode.
     -- see https://neovim.io/doc/user/map.html#:map-cmd
     vmappings = {
-      ["/"] = { "<Plug>(comment_toggle_linewise_visual)", "Comment toggle" },
+      ["/"] = { "<Plug>(comment_toggle_linewise_visual)", "Comment toggle linewise (visual)" },
+      l = {
+        name = "LSP",
+        a = { "<cmd>lua vim.lsp.buf.code_action()<cr>", "Code Action" },
+      },
     },
     mappings = {
       [";"] = { "<cmd>Alpha<CR>", "Dashboard" },
       ["w"] = { "<cmd>w!<CR>", "Save" },
-      ["q"] = { "<cmd>lua require('lvim.utils.functions').smart_quit()<CR>", "Quit" },
-      ["/"] = { "<Plug>(comment_toggle_linewise_current)", "Comment toggle" },
+      ["q"] = { "<cmd>confirm q<CR>", "Quit" },
+      ["/"] = { "<Plug>(comment_toggle_linewise_current)", "Comment toggle current line" },
       ["c"] = { "<cmd>BufferKill<CR>", "Close Buffer" },
-      ["f"] = { require("lvim.core.telescope.custom-finders").find_project_files, "Find File" },
+      ["f"] = {
+        function()
+          require("lvim.core.telescope.custom-finders").find_project_files { previewer = false }
+        end,
+        "Find File",
+      },
       ["h"] = { "<cmd>nohlsearch<CR>", "No Highlight" },
+      ["e"] = { "<cmd>NvimTreeToggle<CR>", "Explorer" },
       b = {
         name = "Buffers",
         j = { "<cmd>BufferLinePick<cr>", "Jump" },
-        f = { "<cmd>Telescope buffers<cr>", "Find" },
+        f = { "<cmd>Telescope buffers previewer=false<cr>", "Find" },
         b = { "<cmd>BufferLineCyclePrev<cr>", "Previous" },
         n = { "<cmd>BufferLineCycleNext<cr>", "Next" },
+        W = { "<cmd>noautocmd w<cr>", "Save without formatting (noautocmd)" },
         -- w = { "<cmd>BufferWipeout<cr>", "Wipeout" }, -- TODO: implement this for bufferline
         e = {
           "<cmd>BufferLinePickClose<cr>",
@@ -126,16 +157,18 @@ M.config = function()
         r = { "<cmd>lua require'dap'.repl.toggle()<cr>", "Toggle Repl" },
         s = { "<cmd>lua require'dap'.continue()<cr>", "Start" },
         q = { "<cmd>lua require'dap'.close()<cr>", "Quit" },
-        U = { "<cmd>lua require'dapui'.toggle()<cr>", "Toggle UI" },
+        U = { "<cmd>lua require'dapui'.toggle({reset = true})<cr>", "Toggle UI" },
       },
       p = {
-        name = "Packer",
-        c = { "<cmd>PackerCompile<cr>", "Compile" },
-        i = { "<cmd>PackerInstall<cr>", "Install" },
-        r = { "<cmd>lua require('lvim.plugin-loader').recompile()<cr>", "Re-compile" },
-        s = { "<cmd>PackerSync<cr>", "Sync" },
-        S = { "<cmd>PackerStatus<cr>", "Status" },
-        u = { "<cmd>PackerUpdate<cr>", "Update" },
+        name = "Plugins",
+        i = { "<cmd>Lazy install<cr>", "Install" },
+        s = { "<cmd>Lazy sync<cr>", "Sync" },
+        S = { "<cmd>Lazy clear<cr>", "Status" },
+        c = { "<cmd>Lazy clean<cr>", "Clean" },
+        u = { "<cmd>Lazy update<cr>", "Update" },
+        p = { "<cmd>Lazy profile<cr>", "Profile" },
+        l = { "<cmd>Lazy log<cr>", "Log" },
+        d = { "<cmd>Lazy debug<cr>", "Debug" },
       },
 
       -- " Available Debug Adapters:
@@ -176,20 +209,20 @@ M.config = function()
         a = { "<cmd>lua vim.lsp.buf.code_action()<cr>", "Code Action" },
         d = { "<cmd>Telescope diagnostics bufnr=0 theme=get_ivy<cr>", "Buffer Diagnostics" },
         w = { "<cmd>Telescope diagnostics<cr>", "Diagnostics" },
-        f = { require("lvim.lsp.utils").format, "Format" },
+        f = { "<cmd>lua require('lvim.lsp.utils').format()<cr>", "Format" },
         i = { "<cmd>LspInfo<cr>", "Info" },
         I = { "<cmd>Mason<cr>", "Mason Info" },
         j = {
-          vim.diagnostic.goto_next,
+          "<cmd>lua vim.diagnostic.goto_next()<cr>",
           "Next Diagnostic",
         },
         k = {
-          vim.diagnostic.goto_prev,
+          "<cmd>lua vim.diagnostic.goto_prev()<cr>",
           "Prev Diagnostic",
         },
-        l = { vim.lsp.codelens.run, "CodeLens Action" },
-        q = { vim.diagnostic.setloclist, "Quickfix" },
-        r = { vim.lsp.buf.rename, "Rename" },
+        l = { "<cmd>lua vim.lsp.codelens.run()<cr>", "CodeLens Action" },
+        q = { "<cmd>lua vim.diagnostic.setloclist()<cr>", "Quickfix" },
+        r = { "<cmd>lua vim.lsp.buf.rename()<cr>", "Rename" },
         s = { "<cmd>Telescope lsp_document_symbols<cr>", "Document Symbols" },
         S = {
           "<cmd>Telescope lsp_dynamic_workspace_symbols<cr>",
@@ -203,6 +236,7 @@ M.config = function()
           "<cmd>edit " .. get_config_dir() .. "/config.lua<cr>",
           "Edit config.lua",
         },
+        d = { "<cmd>LvimDocs<cr>", "View LunarVim's docs" },
         f = {
           "<cmd>lua require('lvim.core.telescope.custom-finders').find_lunarvim_files()<cr>",
           "Find LunarVim files",
@@ -240,11 +274,6 @@ M.config = function()
             "view neovim log",
           },
           N = { "<cmd>edit $NVIM_LOG_FILE<cr>", "Open the Neovim logfile" },
-          p = {
-            "<cmd>lua require('lvim.core.terminal').toggle_log_view(get_cache_dir() .. '/packer.nvim.log')<cr>",
-            "view packer log",
-          },
-          P = { "<cmd>edit $LUNARVIM_CACHE_DIR/packer.nvim.log<cr>", "Open the Packer logfile" },
         },
         r = { "<cmd>LvimReload<cr>", "Reload LunarVim's configuration" },
         u = { "<cmd>LvimUpdate<cr>", "Update LunarVim" },
@@ -262,6 +291,7 @@ M.config = function()
         t = { "<cmd>Telescope live_grep<cr>", "Text" },
         k = { "<cmd>Telescope keymaps<cr>", "Keymaps" },
         C = { "<cmd>Telescope commands<cr>", "Commands" },
+        l = { "<cmd>Telescope resume<cr>", "Resume last search" },
         p = {
           "<cmd>lua require('telescope.builtin').colorscheme({enable_preview = true})<cr>",
           "Colorscheme with Preview",
