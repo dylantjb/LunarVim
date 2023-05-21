@@ -15,17 +15,19 @@ vim.opt.relativenumber = true
 lvim.colorscheme = "onedarker"
 lvim.transparent_window = true
 
-lvim.lsp.diagnostics.virtual_text = false
+vim.diagnostic.config({ virtual_text = false })
 vim.list_extend(lvim.lsp.automatic_configuration.skipped_servers, { "clangd" })
 require("lvim.lsp.null-ls.formatters").setup {
-  { exe = "black", filetypes = { "python" } },
-  { exe = "isort", filetypes = { "python" } },
-  { exe = "djlint", filetypes = { "htmldjango" } },
-  { exe = "scalafmt", filetypes = { "scala" } },
+  { exe = "black",     filetypes = { "python" } },
+  { exe = "isort",     filetypes = { "python" } },
+  { exe = "djlint",    filetypes = { "htmldjango" } },
+  { exe = "prettierd", filetypes = { "javascript" } },
+  { exe = "scalafmt",  filetypes = { "scala" } },
 }
 require("lvim.lsp.null-ls.linters").setup {
-  { exe = "pylint", filetypes = { "python" } },
-  { exe = "djlint", filetypes = { "django" } },
+  { exe = "pylint",   filetypes = { "python" } },
+  { exe = "djlint",   filetypes = { "htmldjango" } },
+  { exe = "eslint_d", filetypes = { "javascript" } },
   { exe = "cppcheck", filetypes = { "cpp", "c" } },
 }
 
@@ -33,6 +35,13 @@ lvim.builtin.dap.active = true
 lvim.builtin.nvimtree.setup.view.side = "left"
 lvim.builtin.nvimtree.setup.filters.dotfiles = true
 lvim.builtin.nvimtree.setup.renderer.icons.show.git = true
+lvim.keymappings = {
+  { key = { "l", "<CR>", "o" }, action = "edit",      mode = "n" },
+  { key = "h",                  action = "close_node" },
+  { key = ";",                  action = "split" },
+  { key = "v",                  action = "vsplit" },
+  { key = "C",                  action = "cd" },
+}
 lvim.builtin.indentlines.options.show_current_context = true
 lvim.builtin.treesitter.ensure_installed = {
   "bash", "c", "cmake", "cpp", "gitignore", "html", "java",
@@ -103,23 +112,50 @@ pcall(function() require("dap-python").setup(mason_path .. "packages/debugpy/ven
 pcall(function() require("dap-python").test_runner = "pytest" end)
 
 lvim.plugins = {
+  {
+    "sindrets/diffview.nvim",
+    event = "BufRead",
+  },
+  {
+    "tpope/vim-fugitive",
+    cmd = {
+      "G",
+      "Git",
+      "Gdiffsplit",
+      "Gread",
+      "Gwrite",
+      "Ggrep",
+      "GMove",
+      "GDelete",
+      "GBrowse",
+      "GRemove",
+      "GRename",
+      "Glgrep",
+      "Gedit"
+    },
+    ft = { "fugitive" }
+  },
   "nvim-neotest/neotest",
   "scalameta/nvim-metals",
   "mfussenegger/nvim-dap-python",
   {
     "zbirenbaum/copilot.lua",
-    event = { "VimEnter" },
     config = function()
       vim.defer_fn(function()
-        require("copilot").setup {
-          plugin_manager_path = get_runtime_dir() .. "/site/pack/packer",
-        }
+        require("copilot").setup {}
       end, 100)
     end,
   },
   {
     "zbirenbaum/copilot-cmp",
-    after = { "copilot.lua", "nvim-cmp" },
+    after = { "copilot.lua" },
+    config = function()
+      require("copilot_cmp").setup {
+        formatters = {
+          insert_text = require("copilot_cmp.format").remove_existing,
+        }
+      }
+    end
   },
   {
     "Pocco81/auto-save.nvim",
@@ -127,13 +163,6 @@ lvim.plugins = {
       require("user.autosave").config()
     end,
   },
-  {
-    "lervag/vimtex",
-    config = function()
-      require("user.vimtex").config()
-    end,
-  },
-
   {
     "nvim-pack/nvim-spectre",
     event = "BufRead",
@@ -144,7 +173,6 @@ lvim.plugins = {
   {
     "folke/persistence.nvim",
     event = "VimEnter",
-    module = "persistence",
     config = function()
       require("persistence").setup {
         dir = vim.fn.expand(vim.fn.stdpath "config" .. "/session/"),
@@ -162,8 +190,8 @@ lvim.plugins = {
         sort = true,
       }
     end,
-    run = "./install.sh",
-    requires = "hrsh7th/nvim-cmp"
+    build = "./install.sh",
+    dependencies = "hrsh7th/nvim-cmp"
   },
   {
     "karb94/neoscroll.nvim",
